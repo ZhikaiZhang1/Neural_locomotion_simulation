@@ -91,15 +91,13 @@ contact_threshold = 0; % anything less than this is contact
 % wext2dep_fd = 0.25;
 % P_con_w = 0;
 
-% intra-leg weights
 w12 = -2.3; w21 = -2.3;
 w11=-3; w22 = -3;
 wpos_fd = 0.35;
 wpos_dep_constant = 0.7;
 wdep2ret_fd = 1;
 wlev2ret_fd = 0.6;
-wlev2pro_fd = 0.3;
-wpro_constant = 0.6;
+wlev2pro_fd = 0.2;
 wposc_fd = 0.1;%0.4;
 wdep2flx_fd = 0.35;
 wlev2ext_fd = 0.45;
@@ -201,7 +199,7 @@ for i = 1:increment:time
    % thorac-coxa joint
 
    stance_ret_fd = y1tr*wdep2ret_fd*contact-y2tr*wlev2pro_fd;
-   stance_pro_fd = -y1tr*wdep2ret_fd*contact+y2tr*wlev2pro_fd*wpro_constant;
+   stance_pro_fd = -y1tr*wdep2ret_fd*contact+y2tr*wlev2pro_fd;
    swing_ret_fd = -y2tr*wlev2ret_fd*(1-contact);
    swing_pro_fd = y2tr*wlev2ret_fd*(1-contact);
 
@@ -330,13 +328,12 @@ figure();
 subplot(3,1,1)
 plot(1:increment:time,y1c_all)
 
-
+xline(contact_all_time,'--',{'contact'});
 % xline(lift_all_time,'--',{'lift'});
 % xline(7.78,'--',{'with','position fb'});
 % legend("y1 - retractor",'','')
 hold on
 plot(1:increment:time,y2c_all)
-xline(contact_all_time,'--',{'contact'});
 legend("y1 - retractor","y2 - protractor")
 % xlabel("timesteps")
 ylabel("velocity (rad/s)")
