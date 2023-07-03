@@ -16,11 +16,11 @@ function [T02,T03,T04,T05, q_1,q_2,q_3] = get_fk_sym()
     a_0=a(1);a_1=a(2);a_2=a(3);a_3=a(4);a_4=a(5);
     d_1=d(1);d_2=d(2);d_3=d(3);d_4=d(4);d_5=d(5);
     
-    R_1 = Rotaion_Matrix(0, alpha(1));
-    R_2 = Rotaion_Matrix(q_1, alpha(2));
-    R_3 = Rotaion_Matrix(q_2, alpha(3));
-    R_4 = Rotaion_Matrix(pi/2, alpha(4));
-    R_5 = Rotaion_Matrix(q_3, alpha(5));
+    R_1 = Rotaion_Matrix(theta(1), alpha(1));
+    R_2 = Rotaion_Matrix(theta(2), alpha(2));
+    R_3 = Rotaion_Matrix(theta(3), alpha(3));
+    R_4 = Rotaion_Matrix(theta(4), alpha(4));
+    R_5 = Rotaion_Matrix(theta(5), alpha(5));
     
     p_1=[cos(theta(1))*a_0;sin(theta(1))*a_0;d_1];
     p_2=[cos(theta(2))*a_1;sin(theta(2))*a_1;d_2];
