@@ -49,7 +49,7 @@
 %% matsuoka oscillator
 clear all;
 close all;
-multi_leg = 0;
+multi_leg = 1;
 
 %initial conditions / constants
 surface_angle = -pi/16;
@@ -115,9 +115,9 @@ P_con_w = 0.6;
 % interlimb coordination rule 1 - posterior leg lifts off inhibits anterior lifting off
 w_ant_inhi_lift = 0.8;
 % interlimb coordination rule 2 - posterior leg touch down induces anterior leg to protract
-w_ant_exci_prot = 1.2;
+w_ant_exci_prot = 0.6;
 % interlimb coordination rule 3 - anterior leg stance excites the posterior leg to start swing
-w_post_excit_swing = 1;
+w_post_excit_swing = 0.4;
 
 % interlimb coordination rule 4 - TBD (not sure about the joint angle policy)
 % interlimb coordination rule 4 - TBD (involves load sensing, will implement later with python sim)
@@ -284,7 +284,7 @@ for i = 1:increment:time
        % thorac-coxa joint
     
        stance_ret_fd = y1tr*wdep2ret_fd*contact-y2tr*wlev2pro_fd -w_ant_exci_prot*(mcontact)*multi_leg*my1tr; %+ w_ant_inhi_lift*(1-mcontact)%maybe here should have load info???
-       stance_pro_fd = -y1tr*wdep2ret_fd*contact+y2tr*wlev2pro_fd*wpro_constant+w_ant_exci_prot*(mcontact)*multi_leg*my1tr;%-w_ant_inhi_lift*(1-mcontact)
+       stance_pro_fd = -y1tr*wdep2ret_fd*contact+y2tr*wlev2pro_fd*wpro_constant+w_ant_exci_prot*(mcontact)*multi_leg*my1tr -w_ant_inhi_lift*(1-mcontact)*multi_leg*my2tr;%-w_ant_inhi_lift*(1-mcontact)
        swing_ret_fd = -y2tr*wlev2ret_fd*(1-contact);
        swing_pro_fd = y2tr*wlev2ret_fd*(1-contact);
     
@@ -295,7 +295,7 @@ for i = 1:increment:time
     
         % coxa-trochanter joint
     
-       stance_dep_fd = -fb1_flex-y1c*wret2lev_fd*contact+wself_dep_fd*y1tr*contact + w_ant_inhi_lift*(1-mcontact)*multi_leg*my2tr;
+       stance_dep_fd = -fb1_flex-y1c*wret2lev_fd*contact+wself_dep_fd*y1tr*contact;% + w_ant_inhi_lift*(1-mcontact)*multi_leg*my2tr;
        stance_lev_fd = fb1_flex+y1c*wret2lev_fd*contact/wext2dep_fd_constant-wself_dep_fd*y1tr*contact*wext2dep_fd_constant - w_ant_inhi_lift*(1-mcontact)*multi_leg*my2tr;
        swing_dep_fd = wext2dep_fd*y2*(1-contact);
        swing_lev_fd = -wext2dep_fd*y2*(1-contact)*wext2dep_fd_constant;
@@ -308,7 +308,7 @@ for i = 1:increment:time
        
        % femur-tibia joint
        stance_flx_fd = p_con_fd-fb1_flex+wdep2flx_fd*y1tr*contact;
-       stance_ext_fd = -p_con_fd+fb1_flex-wdep2flx_fd*y1tr*contact;
+       stance_ext_fd = -p_con_fd+fb1_flex-wdep2flx_fd*y1tr*contact-w_ant_inhi_lift*(1-mcontact)*multi_leg*my2tr;
        swing_flx_fd = -wlev2ext_fd*y2tr*(1-contact);
        swing_ext_fd = +wlev2ext_fd*y2tr*(1-contact);
        flx_fd = stance_flx_fd+swing_flx_fd;
@@ -372,8 +372,8 @@ for i = 1:increment:time
     
        
        % femur-tibia joint
-       mstance_flx_fd = mp_con_fd-mfb1_flex+wdep2flx_fd*my1tr*mcontact;
-       mstance_ext_fd = -mp_con_fd+mfb1_flex-wdep2flx_fd*my1tr*mcontact;
+       mstance_flx_fd = mp_con_fd-mfb1_flex+wdep2flx_fd*my1tr*mcontact-(max(pi/4,flex_pos_err)-flex_pos_err)*w_post_excit_swing*contact;
+       mstance_ext_fd = -mp_con_fd+mfb1_flex-wdep2flx_fd*my1tr*mcontact+(max(pi/4,flex_pos_err)-flex_pos_err)*w_post_excit_swing*contact;
        mswing_flx_fd = -wlev2ext_fd*my2tr*(1-mcontact);
        mswing_ext_fd = +wlev2ext_fd*my2tr*(1-mcontact);
        mflx_fd = mstance_flx_fd+mswing_flx_fd;
@@ -452,7 +452,7 @@ end
     
     % output
     figure();
-    num_graph = 4;
+    num_graph = 3;
     subplot(num_graph,1,1)
     plot(1:increment:time,y1c_all)
     
@@ -495,10 +495,10 @@ end
     legend("y1 - flexor","y2 - extensor",'','')
     xlabel("time")
     
-    subplot(num_graph,1,4)
-    % plot(1:increment:time,stance_phase_all)
-    plot(1:increment:time,z_all)
-    yline(0,'--',{'contact'});
+%     subplot(num_graph,1,4)
+%     % plot(1:increment:time,stance_phase_all)
+%     plot(1:increment:time,z_all)
+%     yline(0,'--',{'contact'});
     
 %     subplot(num_graph,1,4)
 %     plot(1:increment:time,contact_all)
@@ -568,7 +568,7 @@ end
     
     % output
     figure();
-    
+    num_graph = 3;
     subplot(num_graph,1,1)
     plot(1:increment:time,my1c_all)
     
@@ -611,10 +611,10 @@ end
     legend("y1 - flexor","y2 - extensor",'','')
     xlabel("time")
     
-    subplot(num_graph,1,4)
-    % plot(1:increment:time,stance_phase_all)
-    plot(1:increment:time,z_all)
-    yline(0,'--',{'contact'});
+%     subplot(num_graph,1,4)
+%     % plot(1:increment:time,stance_phase_all)
+%     plot(1:increment:time,mz_all)
+%     yline(0,'--',{'contact'});
     
 %     subplot(num_graph,1,4)
 %     plot(1:increment:time,contact_all)
@@ -624,3 +624,44 @@ end
     
     
     set(gcf,'color','w')
+
+    %% combined plots
+figure();
+    num_graph = 2;
+    subplot(num_graph,1,1)
+    plot(1:increment:time,y1c_all)
+    
+    
+    % xline(lift_all_time,'--',{'lift'});
+    % xline(7.78,'--',{'with','position fb'});
+    % legend("y1 - retractor",'','')
+    hold on
+    plot(1:increment:time,y2c_all)
+    xline(contact_all_time,'--',{'contact'});
+    legend("y1 - retractor","y2 - protractor")
+    % xlabel("timesteps")
+    ylabel("velocity (rad/s)")
+    title("middle thorac-coxa neuron output (joint velocity)")
+    
+    subplot(num_graph,1,2)
+    plot(1:increment:time,my1c_all)
+    hold on
+    plot(1:increment:time,my2c_all)
+    xline(mcontact_all_time,'--',{'contact'});
+    % xline(lift_all_time,'--',{'lift'});
+    % xline(7.78,'--',{'with','position fb'});
+    legend("y1 - retractor","y2 - protractor",'','')
+    % xlabel("timesteps")
+    ylabel("velocity (rad/s)")
+    title("hind thorac-coxa neuron output (joint velocity)")
+    %% contact graphes of two legs
+    figure()
+    subplot(2,1,1)
+    plot(1:increment:time,contact_all)
+    title("contact activity of middle leg (high - contact, Low - no contact)")
+    xlabel("time")
+%     hold on
+    subplot(2,1,2)
+    plot(1:increment:time,mcontact_all)
+    title("contact activity of hind leg (high - contact, Low - no contact)")
+    xlabel("time")

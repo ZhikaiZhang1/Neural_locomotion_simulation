@@ -1,5 +1,5 @@
 function [contact,contact_all_out,z_all_out] = detect_contact_fk(T,q_1, q_2, q_3, position1_c,position1_tr,position1, thresh, contact_all,z_all,robot_height)
-   Transformation = subs(T, [q_1, q_2, q_3], [position1_c,position1_tr,position1]);
+   Transformation = subs(T, [q_1, q_2, q_3], [-position1_c,-position1_tr,-position1]);
    cartesian_pos = vpa(Transformation)*[0;0;robot_height;1];
    z_all_out = [z_all,cartesian_pos(3)];
     
