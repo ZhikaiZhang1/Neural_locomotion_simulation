@@ -70,9 +70,9 @@ class NSI_leg():
         return stance_wing
 
     def Rotaion_Matrix(self, Q, alpha):
-      R = np.array([[cos(Q), -sin(Q)*cos(alpha),sin(Q)*sin(alpha)],
-         [sin(Q), cos(Q)*cos(alpha), -sin(alpha)*cos(Q)],
-         [0, sin(alpha), cos(alpha)]])
+      R = np.array([[np.cos(Q), -np.sin(Q)*np.cos(alpha),np.sin(Q)*np.sin(alpha)],
+         [np.sin(Q), np.cos(Q)*np.cos(alpha), -np.sin(alpha)*np.cos(Q)],
+         [0, np.sin(alpha), np.cos(alpha)]])
       return R
 
 
@@ -94,18 +94,20 @@ class NSI_leg():
              np.vstack((np.concatenate((R_3,p_3),axis=1), np.array([0,0,0,1]))),
              np.vstack((np.concatenate((R_4,p_4),axis=1), np.array([0,0,0,1]))),
              np.vstack((np.concatenate((R_5,p_5),axis=1), np.array([0,0,0,1])))]
+        # print("T sample: ", T[2])
         # T = T_1*T_2*T_3*T_4*T_5
-        T_out = T[0]
-        if order == 0:
-            return T_out
-        else:
-            for i in range(0,order-1):
-                T_out @= T[i+1]
+        T_out = T[0]@T[1]@T[2]@T[3]@T[4]
+        return T_out
+        # if order == 0:
+        #     return T_out
+        # else:
+        #     for i in range(0,order-1):
+        #         T_out = T_out @ T[i+1]
+        #
+        #     return T_out
 
-            return T_out
 
-
-    def pos_err_fd(self, desired_pos, curr_pos, weight, max_min = 'min',divider=0.1,max_min_lim = 3):
+    def pos_err_fd(self, desired_pos, curr_pos, weight, max_min = 'min',divider=0.15,max_min_lim = 3):
         # for switching phases
         pos_err = desired_pos - curr_pos # self.femtb_joint.amplitude-self.joint_pos[2]
         if max_min == 'min':
@@ -150,10 +152,14 @@ class NSI_leg():
 
         # get flx-ext feedback
         pos_limit_fd = self.pos_err_fd(self.femtb_joint.amplitude, self.joint_pos[2], self.wpos_fd)
-        p_con_fd = slf.pos_con(self.femtb_joint.amplitude, self.joint_pos[2])
+        p_con_fd = self.pos_con(self.femtb_joint.amplitude, self.joint_pos[2],self.P_con_w)
 
         if self.mode == 'FK_sim':
             self.contact = self.test_detect_contact(self.joint_pos[0],self.joint_pos[1],self.joint_pos[2],self.ELBOW_OUTPUT_DIS+self.FOOT_INPUT_DIS)
+            if self.detect_phase() != 0:
+                p_con_fd = 0
+                pos_limit_fd[0] = 0
+                pos_limit_fd[1] = 0
         elif self.mode == 'copella_sim':
             pass
         elif self.mode == 'real':
@@ -170,8 +176,8 @@ class NSI_leg():
 
 
         # fb for co-tr joint
-        stance_dep_fd = -pos_limit_fd[0] - output_thco[0] * self.wret2lev_fd * self.contact + self.wself_dep_fd * y1tr * self.contact
-        stance_lev_fd = pos_limit_fd[0] + output_thco[0] * self.wret2lev_fd * self.contact / self.wext2dep_fd_constant - self.wself_dep_fd * y1tr * self.contact * self.wext2dep_fd_constant
+        stance_dep_fd = -pos_limit_fd[0] - output_thco[0] * self.wret2lev_fd * self.contact + self.wself_dep_fd * output_cotr[0] * self.contact
+        stance_lev_fd = pos_limit_fd[0] + output_thco[0] * self.wret2lev_fd * self.contact / self.wext2dep_fd_constant - self.wself_dep_fd * output_cotr[0] * self.contact * self.wext2dep_fd_constant
         swing_dep_fd = self.wext2dep_fd * output_femtb[1] * (1 - self.contact)
         swing_lev_fd = -self.wext2dep_fd * output_femtb[1] * (1 - self.contact) * self.wext2dep_fd_constant
 
@@ -202,11 +208,11 @@ class NSI_leg():
         thco_all_states = self.thco_joint.update(I,feedback[0][0],feedback[0][1],Tau)
         cotr_all_states = self.cotr_joint.update(I, feedback[1][0], feedback[1][1], Tau)
         femtb_all_states = self.femtb_joint.update(I, feedback[2][0], feedback[2][1], Tau)
-        return np.array([np.array(thco_all_states),np.array(cotr_all_states),np.array(femtb_all_states)])
+        return np.array([thco_all_states,cotr_all_states,femtb_all_states])
     def update(self, Tau,I):
         feedback = self.Calculate_fb()
         all_curr_states = self.update_joints(Tau, feedback, I)
-        self.update_robot_states(Tau, all_curr_states[0][0:2],all_curr_states[1][0:2],all_curr_states[2][0:2])
+        self.update_robot_states(Tau, all_curr_states[0,4:6],all_curr_states[1,4:6],all_curr_states[2,4:6])
         return all_curr_states
     def get_all_robot_states(self):
         return [self.joint_pos, self.contact, self.load, self.joint_vel,self.joint_accel]
@@ -223,34 +229,51 @@ class NSI_leg():
 def unit_test():
     single_leg = NSI_leg(mode='FK_sim')
     single_leg.set_robot_state(np.array([-np.pi/8,-np.pi/8,-np.pi/8]),np.zeros(3),np.zeros(3))
-    time = 100
+    time = 50
     increment = 0.01
     Tau = increment
     I = 1
-    N = int(100/increment)
+    N = int(time/increment)
 
-    all_eff_pos = np.zeros((N,3))
+    all_eff_pos = np.zeros(N)
     all_neuron_states = np.zeros((N, 3,2))
     all_contact = np.zeros((N, 1))
+    contact_times = []
     for i in range(0,N):
         neuron_states = single_leg.update(Tau, I)
-        all_neuron_states[N, 0, 0:2] = neuron_states[0, 4:6]
-        all_neuron_states[N, 1, 0:2] = neuron_states[2, 4:6]
-        all_neuron_states[N, 2, 0:2] = neuron_states[1, 4:6]
-        all_eff_pos[i,:] = single_leg.eff_pos[0:3]
+        all_neuron_states[i, 0, 0:2] = neuron_states[0, 4:6]
+        all_neuron_states[i, 1, 0:2] = neuron_states[1, 4:6]
+        all_neuron_states[i, 2, 0:2] = neuron_states[2, 4:6]
+        all_eff_pos[i] = single_leg.eff_pos[2]
         all_contact[i] = single_leg.contact
+        if i > 0 and all_contact[i-1] == 0 and all_contact[i] == 1:
+            contact_times.append(i)
 
-    contact_times = np.where(all_contact == 1)[0]
+    contact_times = np.array(contact_times)/100
+    x = np.arange(0.0, time, increment)
     plt.figure()
-    plt.plot(all_neuron_states[:,0,:])
-    plt.axvline(x=contact_times)
-    plt.subplot(311)
-    plt.axvline(x=contact_times)
-    plt.plot(all_neuron_states[:, 1, :])
-    plt.subplot(312)
-    plt.plot(all_neuron_states[:, 2, :])
-    plt.axvline(x=contact_times)
-    plt.subplot(313)
+    plt.subplot(411)
+    plt.plot(x,all_neuron_states[:,0,:])
+    plt.legend(['retractor', 'protractor'])
+    for index in contact_times:
+        plt.axvline(x=index,color='black', linestyle='--')
+
+    plt.subplot(412)
+    plt.plot(x,all_neuron_states[:, 1, :])
+    plt.legend(['depressor', 'levator'])
+    for index in contact_times:
+        plt.axvline(x=index,color='black', linestyle='--')
+
+    plt.subplot(413)
+    plt.plot(x,all_neuron_states[:, 2, :])
+    plt.legend(['flexor', 'extensor'])
+    for index in contact_times:
+        plt.axvline(x=index,color='black', linestyle='--')
+
+    plt.subplot(414)
+    plt.plot(x,all_eff_pos)
+    plt.axhline(y=0, color='black', linestyle='--')
+
 
 
 

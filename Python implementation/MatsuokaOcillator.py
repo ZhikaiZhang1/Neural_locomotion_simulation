@@ -4,7 +4,7 @@ import numpy as np
 
 
 class MatsuokaOcillator():
-    def __init__(self, amplitude=np.pi/8, w12=-2.3,w21=-2.3,w11=-3,w22=-3,Tau_ri=0.3,Tau_ai=0.6,ws0=1,u1_init=0.01,u2_init=0.01,f1_init=-0.01,f2_init=-0.08):
+    def __init__(self, amplitude=np.pi/8, w12=-2.3,w21=-2.3,w11=-3,w22=-3,Tau_ri=0.3,Tau_ai=6,ws0=1,u1_init=0.01,u2_init=-0.01,f1_init=-0.01,f2_init=0.08):
         self.amplitude = amplitude
 
         # synaptic weights
